@@ -1,3 +1,34 @@
+"""
+DICOM2GLB.PY
+
+This script is designed to convert DICOM files into GLB format suitable for 3D rendering and visualization. 
+It encompasses a series of operations including segmentation, material creation, and conversion of medical 
+imaging data (NIfTI files) into 3D printable models (STL files), and finally to GLB format. The script 
+utilizes Blender for 3D operations and VTK for image processing tasks.
+
+Features:
+- Material Creation: Defines materials with specific visual properties for different anatomical structures.
+- Segmentation: Automates the segmentation of medical images to isolate regions of interest.
+- NIfTI to STL Conversion: Converts segmented NIfTI files into STL format for 3D modeling.
+- Mesh Processing: Includes operations for cleaning and preparing meshes for 3D printing or rendering.
+- Scene Management: Provides functions for manipulating the scene in Blender, including rotating and applying transformations.
+
+Dependencies:
+- Blender: For 3D modeling operations.
+- VTK: For processing medical imaging data.
+- TotalSegmentator: For segmentation tasks (assumed external tool).
+
+Usage:
+The script is intended to be run within a Blender environment with access to the necessary libraries for 
+image processing (VTK) and assumes the presence of a command-line tool (TotalSegmentator) for segmentation. 
+It requires specifying input and output directories for processing multiple files in batch mode.
+
+Note:
+This script is part of a larger workflow for converting medical imaging data into formats suitable for 
+3D visualization and printing. It assumes a certain directory structure and file naming convention for 
+input and output files.
+"""
+
 import subprocess
 import os
 import sys
@@ -13,6 +44,19 @@ blender_path = r"C:\Program Files\Blender Foundation\Blender 3.6"
 
 # Function to create BDSF material with custom properties
 def create_material(name, color, specular, metallic, clearcoat):
+    """
+    Creates a new material with specified properties and adds it to the Blender scene.
+
+    Parameters:
+    - name (str): The name of the material.
+    - color (tuple): The base color of the material as a tuple of RGBA values (0 to 1).
+    - specular (float): The specular intensity of the material.
+    - metallic (float): The metallic property of the material.
+    - clearcoat (float): The clearcoat weight of the material.
+
+    Returns:
+    - material: The created Blender material object.
+    """
     material = bpy.data.materials.new(name)
     material.use_nodes = True
     nodes = material.node_tree.nodes
@@ -30,6 +74,16 @@ def create_material(name, color, specular, metallic, clearcoat):
 os.environ['PATH'] += os.pathsep + blender_path
 
 def run_segmentation(input_path, segment_dir):
+    """
+    Runs a segmentation process on a given input file and outputs the results to a specified directory.
+
+    Parameters:
+    - input_path (str): The path to the input file.
+    - segment_dir (str): The directory where the segmentation results will be saved.
+
+    Raises:
+    - subprocess.CalledProcessError: If the segmentation process exits with a non-zero status.
+    """
     print(f"Running segmentation on file: {input_path}")
     command = ["TotalSegmentator", "-i", input_path, "-o", segment_dir, "--fast"]
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors='ignore')
@@ -51,6 +105,13 @@ def run_segmentation(input_path, segment_dir):
 
 
 def nii_to_stl(nii_path, stl_path):
+    """
+    Converts a NIfTI file to an STL file.
+
+    Parameters:
+    - nii_path (str): The path to the NIfTI file.
+    - stl_path (str): The path where the STL file will be saved.
+    """
     print(f"Converting NIfTI file to STL: {nii_path}")
     reader = vtk.vtkNIFTIImageReader()
     reader.SetFileName(nii_path)
@@ -93,6 +154,13 @@ def nii_to_stl(nii_path, stl_path):
     writer.Write()
 
 def convert_all_nii_to_stl(segment_dir, stl_dir):
+    """
+    Converts all NIfTI files in a directory to STL format.
+
+    Parameters:
+    - segment_dir (str): The directory containing the NIfTI files.
+    - stl_dir (str): The directory where the STL files will be saved.
+    """
     print(f"Converting all NIfTI files in directory: {segment_dir} to STL")
     for file_name in os.listdir(segment_dir):
         if file_name.endswith('.nii.gz'):
@@ -104,11 +172,20 @@ def convert_all_nii_to_stl(segment_dir, stl_dir):
             nii_to_stl(nii_path, stl_path)
 
 def fill_holes_in_mesh(obj):
+    """
+    Fills holes in a mesh object.
+
+    Parameters:
+    - obj: The Blender mesh object to be processed.
+    """
     print("Filling holes in mesh")
     obj.select_set(True)
     bpy.ops.mesh.print3d_clean_non_manifold()
 
 def rotate_scene():
+    """
+    Rotates the entire scene by 180 degrees around the Z and Y axes.
+    """
     # Select all objects in the scene
     bpy.ops.object.select_all(action='SELECT')
     
@@ -128,6 +205,9 @@ rotate_scene()
 
 # If you want to save the rotated state as the new rest pose, apply the transformation
 def apply_transformation():
+    """
+    Applies rotation transformations to all objects in the scene.
+    """
     # Select all objects in the scene
     bpy.ops.object.select_all(action='SELECT')
     
@@ -209,8 +289,6 @@ def main():
                 if file.endswith(".stl"):
                     bpy.ops.import_mesh.stl(filepath=os.path.join(stl_dir, file))
 
-       
-
             # Assign materials based on node labels
             print("Assigning materials based on node labels")
             for obj in bpy.context.scene.objects:
@@ -245,7 +323,6 @@ def main():
                 elif any(substring in obj_name for substring in ['brain', 'spinal_cord']):
                     obj.data.materials.append(nervous_mat)
                 
-
             rotate_scene()
             apply_transformation()
             
