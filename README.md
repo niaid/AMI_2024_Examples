@@ -8,6 +8,9 @@
 ## Description
 A collection of Python scripts presented at the Association of Medical Illustrators Conference 2024, demonstrating how Python can be used to automate certain tasks in medical visualization. These scripts culminate in `dicom2glb.py`, which processes nrrd files through [Total Segmentator](https://github.com/wasserth/TotalSegmentator)  for segmentation, converts segmentations into VTK meshes, exports them as STLs, and finally imports them into Blender. Here, materials are assigned, objects grouped and centered, and the result is exported as a single GLB file per nrrd file.
 
+## Disclaimer
+These scripts were developed for illustrative purposes and have not been extensively tested.  They work well on the limited test cases done to develop the presentation.
+
 ## Requirements
 
 - [Blender](https://www.blender.org/download/): Must be installed and accessible for script execution.
