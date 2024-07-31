@@ -40,7 +40,9 @@ import math
 import re
 
 # Specify the path to the Blender executable directory
-blender_path = r"C:\Program Files\Blender Foundation\Blender 3.6"
+blender_path = r"C:\\Program Files\\Blender Foundation\\Blender 4.2"
+# Add Blender directory to the PATH environment variable
+os.environ['PATH'] += os.pathsep + blender_path
 
 # Function to create BDSF material with custom properties
 def create_material(name, color, specular, metallic, clearcoat):
@@ -70,8 +72,7 @@ def create_material(name, color, specular, metallic, clearcoat):
     
     return material
 
-# Add Blender directory to the PATH environment variable
-os.environ['PATH'] += os.pathsep + blender_path
+
 
 def run_segmentation(input_path, segment_dir):
     """
@@ -86,6 +87,7 @@ def run_segmentation(input_path, segment_dir):
     """
     print(f"Running segmentation on file: {input_path}")
     command = ["TotalSegmentator", "-i", input_path, "-o", segment_dir, "--fast"]
+
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors='ignore')
 
     # Print stdout in real-time
@@ -171,17 +173,6 @@ def convert_all_nii_to_stl(segment_dir, stl_dir):
             # Call the nii_to_stl function to convert the file
             nii_to_stl(nii_path, stl_path)
 
-def fill_holes_in_mesh(obj):
-    """
-    Fills holes in a mesh object.
-
-    Parameters:
-    - obj: The Blender mesh object to be processed.
-    """
-    print("Filling holes in mesh")
-    obj.select_set(True)
-    bpy.ops.mesh.print3d_clean_non_manifold()
-
 def rotate_scene():
     """
     Rotates the entire scene by 180 degrees around the Z and Y axes.
@@ -221,8 +212,6 @@ def main():
     # Measure execution time
     start_time = time.time()
 
-    # Enable the 3D-Print Toolbox add-on
-    bpy.ops.preferences.addon_enable(module="object_print3d_utils")
     # Create materials with realistic colors and properties
     bone_mat = create_material("bone_mat", (0.95, 0.92, 0.89, 1), 0.5, 0.1, 0.2)
     muscle_mat = create_material("muscle_mat", (0.8, 0.2, 0.2, 1), 0.4, 0, 0.1)
@@ -242,13 +231,13 @@ def main():
     vein_mat = create_material("vein_mat", (0, 0, 0.4, 1), 0.5, 0, 0.2)
 
     # Get absolute paths of the input and output directories
-    input_dir = os.path.abspath(sys.argv[1])
-    output_dir = os.path.abspath(sys.argv[2])
+    input_dir = sys.argv[1]
+    output_dir = sys.argv[2]
 
     # Iterate over all files in the input directory
     for filename in os.listdir(input_dir):
         # Process only files with the .nii.gz extension
-        if filename.endswith(".nii.gz") or filename.endswith(".nii"):
+        if filename.endswith(".nii"):
             print(f"Processing file: {filename}")
             # Get the absolute path of the current file
             input_path = os.path.join(input_dir, filename)
@@ -274,8 +263,10 @@ def main():
             glb_dir = os.path.join(file_subdir, "glbs")
             os.makedirs(glb_dir, exist_ok=True)
             
+           
             # Run the segmentation conversion on the current file
             run_segmentation(input_path, segment_dir) 
+            
             convert_all_nii_to_stl(segment_dir, stl_dir)
 
             # Clear the scene
@@ -287,12 +278,12 @@ def main():
             print("Loading all STL files")
             for file in os.listdir(stl_dir):
                 if file.endswith(".stl"):
-                    bpy.ops.import_mesh.stl(filepath=os.path.join(stl_dir, file))
+                    bpy.ops.wm.stl_import(filepath=os.path.join(stl_dir, file))
 
             # Assign materials based on node labels
             print("Assigning materials based on node labels")
             for obj in bpy.context.scene.objects:
-                #fill_holes_in_mesh(obj)
+
                 obj_name = obj.name.lower()
                 if any(substring in obj_name for substring in ['vertebrae', 'sacrum', 'humerus', 'scapula', 'clavicula', 'femur', 'hip', 'skull', 'rib', 'sternum']):
                     obj.data.materials.append(bone_mat)
@@ -337,3 +328,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+#python dicom2glb.py Test\Images\ Test\Outputs\
