@@ -189,7 +189,7 @@ def process_dicom(dicom_input, output_dir):
 
     segment_dir = os.path.join(output_subdir, "segment")
     stl_dir = os.path.join(output_subdir, "stl")
-    glb_dir = os.path.join(output_subdir, "glb")
+    glb_dir = os.path.join(output_subdir, "glb\\")
     glb_path = glb_dir + filename_no_extension + ".glb"
 
     os.makedirs(segment_dir, exist_ok=True)
