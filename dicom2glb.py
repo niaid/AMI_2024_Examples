@@ -61,7 +61,7 @@ def assign_materials():
 # Segmentation and Conversion Functions
 def run_segmentation(input_path, segment_dir):
     print(f"Running segmentation on file: {input_path}")
-    command = ["TotalSegmentator", "-i", input_path, "-o", segment_dir, "--fast", "--preview"]
+    command = ["TotalSegmentator", "-i", input_path, "-o", segment_dir, "--preview"]
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors='ignore')
     for line in iter(process.stdout.readline, ''):
         print(line, end='')
@@ -185,7 +185,7 @@ def process_dicom(dicom_input, output_dir):
 
     # Remove the file extension and the .gz suffix using regular expressions
     filename_no_extension = re.sub(pattern, "", filename)
-    output_subdir = output_dir + "/" + filename_no_extension + "/"
+    output_subdir = output_dir + filename_no_extension + "\\"
 
     segment_dir = os.path.join(output_subdir, "segment")
     stl_dir = os.path.join(output_subdir, "stl")
