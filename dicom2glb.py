@@ -12,35 +12,34 @@ import re
 blender_path = r"C:\\Program Files\\Blender Foundation\\Blender 4.2"
 os.environ['PATH'] += os.pathsep + blender_path
 
+
 # Material Creation Functions
-def create_material(name, color, specular, metallic, clearcoat):
+def create_material(name, color, roughness, metallic, clearcoat):
     material = bpy.data.materials.new(name)
     material.use_nodes = True
     nodes = material.node_tree.nodes
     principled_bsdf = nodes.get("Principled BSDF")
     
     principled_bsdf.inputs['Base Color'].default_value = color
-    principled_bsdf.inputs['Specular IOR Level'].default_value = specular
+    principled_bsdf.inputs['Roughness'].default_value = roughness
     principled_bsdf.inputs['Metallic'].default_value = metallic
     principled_bsdf.inputs['Coat Weight'].default_value = clearcoat
     
     return material
 
 def assign_materials():
-    bone_mat = create_material("bone_mat", (0.95, 0.92, 0.89, 1), 0.5, 0.1, 0.2)
-    muscle_mat = create_material("muscle_mat", (0.8, 0.2, 0.2, 1), 0.4, 0, 0.1)
-    nervous_mat = create_material("nervous_mat", (0.9, 0.9, 0.9, 1), 0.5, 0, 0.1)
-    spleen_mat = create_material("spleen_mat", (0.55, 0.0, 0.0, 1), 0.5, 0, 0.2)
-    kidney_mat = create_material("kidney_mat", (0.7, 0.3, 0.3, 1), 0.5, 0, 0.2)
-    liver_mat = create_material("liver_mat", (0.5, 0.1, 0.1, 1), 0.5, 0, 0.2)
-    stomach_mat = create_material("stomach_mat", (0.8, 0.5, 0.4, 1), 0.5, 0, 0.2)
-    pancreas_mat = create_material("pancreas_mat", (0.9, 0.7, 0.5, 1), 0.5, 0, 0.2)
-    lung_mat = create_material("lung_mat", (0.95, 0.7, 0.7, 1), 0.5, 0, 0.2)
-    heart_mat = create_material("heart_mat", (0.9, 0.2, 0.2, 1), 0.5, 0, 0.2)
-    artery_mat = create_material("artery_mat", (0.8, 0, 0, 1), 0.5, 0, 0.2)
-    intestine_mat = create_material("intestine_mat", (0.9, 0.8, 0.7, 1), 0.5, 0, 0.2)
-    cartilage_mat = create_material("cartilage_mat", (0.7, 0.85, 0.95, 1), 0.5, 0, 0.2)
-    vein_mat = create_material("vein_mat", (0, 0, 0.4, 1), 0.5, 0, 0.2)
+    bone_mat = create_material("bone_mat", (1.0, 0.965, 0.947, 1.0), 0.2, 0, 0.5)
+    muscle_mat = create_material("muscle_mat", (0.469, 0.106, 0.117, 1.0), 0.2, 0, 0.5)
+    nervous_mat = create_material("nervous_mat", (1.0, 0.917, 0.867, 1.0), 0.2, 0, 0.5)
+    spleen_mat = create_material("spleen_mat", (0.067, 0.04, 0.04,1.0),0.2, 0, 0.5)
+    kidney_mat = create_material("kidney_mat", (0.124, 0.043, 0.014, 1.0), 0.2, 0, 0.5)
+    liver_mat = create_material("liver_mat", (0.116, 0.04, 0.04, 1.0 ), 0.2, 0, 0.5)
+    stomach_mat = create_material("stomach_mat", (0.452, 0.267, 0.219, 1.0 ), 0.2, 0, 0.5)
+    lung_mat = create_material("lung_mat", (0.621, 0.364, 0.310, 1.0), 0.2, 0, 0.5)
+    artery_mat = create_material("artery_mat", (0.808,0.587, 0.565,1.0  ), 0.2, 0, 0.5)
+    cartilage_mat = create_material("cartilage_mat", (0.766, 0.807, 0.888, 1.0), 0.2, 0, 0.5)
+    vein_mat = create_material("vein_mat", (0.108, 0.024, 0.058, 1.0 ),0.2, 0, 0.5)
+    gland_mat = create_material("gland_mat", (0.901, 0.783,0.617, 1.0), 0.2, 0, 0.5)
     return {
         'bone': bone_mat,
         'muscle': muscle_mat,
@@ -49,13 +48,11 @@ def assign_materials():
         'kidney': kidney_mat,
         'liver': liver_mat,
         'stomach': stomach_mat,
-        'pancreas': pancreas_mat,
         'lung': lung_mat,
-        'heart': heart_mat,
         'artery': artery_mat,
-        'intestine': intestine_mat,
         'cartilage': cartilage_mat,
-        'vein': vein_mat
+        'vein': vein_mat,
+        'gland': gland_mat
     }
 
 # Segmentation and Conversion Functions
@@ -79,7 +76,7 @@ def run_segmentation(input_path, segment_dir):
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, command)
 
-def nii_to_stl(nii_path, stl_path):
+def vtk_nii_to_stl(nii_path, stl_path):
     print(f"Converting NIfTI file to STL: {nii_path}")
     reader = vtk.vtkNIFTIImageReader()
     reader.SetFileName(nii_path)
@@ -125,7 +122,7 @@ def convert_all_nii_to_stl(segment_dir, stl_dir):
             nii_path = os.path.join(segment_dir, file_name)
             stl_file_name = os.path.splitext(os.path.splitext(file_name)[0])[0] + '.stl'
             stl_path = os.path.join(stl_dir, stl_file_name)
-            nii_to_stl(nii_path, stl_path)
+            vtk_nii_to_stl(nii_path, stl_path)
 
 # Scene Management Functions
 def clear_scene():
@@ -155,7 +152,7 @@ def assign_materials_to_objects(materials):
         obj_name = obj.name.lower()
         if any(substring in obj_name for substring in ['vertebrae', 'sacrum', 'humerus', 'scapula', 'clavicula', 'femur', 'hip', 'skull', 'rib', 'sternum']):
             obj.data.materials.append(materials['bone'])
-        elif any(substring in obj_name for substring in ['gluteus_maximus', 'gluteus_medius', 'gluteus_minimus', 'autochthon', 'iliopsoas']):
+        elif any(substring in obj_name for substring in ['heart', 'autochthon', 'gluteus_maximus', 'gluteus_medius', 'gluteus_minimus', 'autochthon', 'iliopsoas']):
             obj.data.materials.append(materials['muscle'])
         elif 'spleen' in obj_name:
             obj.data.materials.append(materials['spleen'])
@@ -163,36 +160,164 @@ def assign_materials_to_objects(materials):
             obj.data.materials.append(materials['kidney'])
         elif 'liver' in obj_name:
             obj.data.materials.append(materials['liver'])
-        elif 'stomach' in obj_name:
+        elif any(substring in obj_name for substring in ['stomach', 'esophagus', 'bowel', 'colon']):
             obj.data.materials.append(materials['stomach'])
-        elif 'pancreas' in obj_name:
-            obj.data.materials.append(materials['pancreas'])
         elif 'lung' in obj_name:
             obj.data.materials.append(materials['lung'])
-        elif 'heart' in obj_name:
-            obj.data.materials.append(materials['heart'])
-        elif 'aorta' in obj_name or 'artery' in obj_name:
+        elif 'spinal' in obj_name:
+            obj.data.materials.append(materials['nervous'])
+        elif any(substring in obj_name for substring in ['artery', 'aorta']):
             obj.data.materials.append(materials['artery'])
-        elif 'intestine' in obj_name:
-            obj.data.materials.append(materials['intestine'])
-        elif any(substring in obj_name for substring in ['cartilage']):
+        elif any(substring in obj_name for substring in ['cartilage', 'trachea']):
             obj.data.materials.append(materials['cartilage'])
-        elif any(substring in obj_name for substring in ['vein', 'vena_cava', 'portal_vein', 'vascular', 'vessel']):
+        elif any(substring in obj_name for substring in ['vein', 'vena_cava', 'portal_vein', 'vascular', 'vessel', 'brachiocephalic_trunk']):
             obj.data.materials.append(materials['vein'])
+        elif any(substring in obj_name for substring in ['gland', 'thyroid', 'parathyroid', 'adrenal', 'pituitary', 'hypothalamus', 'thymus', 'pancreas']):
+            obj.data.materials.append(materials['gland'])
         else:
             obj.data.materials.append(materials['muscle'])  # Default to muscle for unidentified structures
+
+def create_parent_object(name):
+    parent = bpy.data.objects.new(name, None)
+    bpy.context.collection.objects.link(parent)
+    return parent
+
+def group_objects(group_definitions, parent=None):
+    # Create a dictionary to keep track of parent objects
+    parent_objects = {}
+    
+    for group_name, subgroups in group_definitions.items():
+        # Create a parent object for the current group
+        parent_object = create_parent_object(group_name)
+        parent_objects[group_name] = parent_object
+        
+        # If a parent is provided, set the current group's parent to it
+        if parent:
+            parent_object.parent = parent
+        
+        # Debugging: Print the current group and its parent
+        parent_name = parent.name if parent else 'None'
+        print(f"Grouping: {group_name}, Parent: {parent_name}")
+        
+        # If subgroups is a dictionary, recursively group them
+        if isinstance(subgroups, dict):
+            group_objects(subgroups, parent_object)
+        else:
+            # Otherwise, assign objects to the current group
+            for obj in bpy.context.scene.objects:
+                obj_name = obj.name.lower()
+                if any(substring in obj_name for substring in subgroups):
+                    # Ensure the object is not assigned as its own parent
+                    if obj != parent_object:
+                        obj.parent = parent_object
+                        # Debugging: Print the object and the group it's assigned to
+                        print(f"Assigning object: {obj.name} to group: {group_name}")
+        
+        # Remove the parent object if it has no children
+        if not parent_object.children:
+            parent_object_name = parent_object.name
+            bpy.data.objects.remove(parent_object)
+            print(f"Removed empty parent object: {parent_object_name}")
+
+# Define the groups and their corresponding substrings.  Added all TS groups for downstream usage.
+group_definitions = {
+    "muscular_system": {
+        "back": ["autochthon"],
+        "hip": ["iliopsoas", "gluteus_maximus", "gluteus_medius", "gluteus_minimus"],
+        "lower_limb": ["quadriceps_femoris", "sartorius", "thigh"],
+        "head_muscles": ["masseter", "temporalis", "lateral_pterygoid", "medial_pterygoid", "tongue", "digastric"],
+        "neck_muscles": ["sternocleidomastoid", "superior_pharyngeal_constrictor", "middle_pharyngeal_constrictor", "inferior_pharyngeal_constrictor", "trapezius", "platysma", "levator_scapulae", "anterior_scalene", "middle_scalene", "posterior_scalene", "sterno_thyroid", "thyrohyoid", "prevertebral"]
+    },
+     "skeletal_system": {
+        "axial_skeleton": {
+            "vertebrae": ["vertebrae", "sacrum", "intervertebral_discs", "vertebrae_body"],
+            "skull": {
+                "skull": ["skull", "zygomatic_arch", "styloid_process", "thyroid_cartilage", "cricoid_cartilage"],
+                "bony_processes": []
+            },
+            "ribs": ["rib"],
+            "sternum": ["sternum"],
+            "pelvis": ["hip"],
+            "hyoid": ["hyoid"]
+        },
+        "appendicular_skeleton": {
+            "upper_limb": ["humerus", "ulna", "radius", "carpal", "metacarpal", "phalanges_hand", "clavicula", "scapula"],
+            "lower_limb": ["femur", "patella", "tibia", "fibula", "tarsal", "metatarsal", "phalanges_feet"]
+        },
+        "cartilage": ["cartilage"]
+    },
+    "circulatory_system": {
+        "heart": ["heart", "heart_myocardium", "heart_atrium", "heart_ventricle", "atrial"],
+        "vessels": {
+            "arteries": ["aorta", "brachiocephalic_trunk", "artery", "arteries"],
+            "veins": ["vein", "vena", "iliac_vena", "inferior_vena_cava", "portal_vein_and_splenic_vein"],
+            "lung_vessels": ["lung_vessels", "lung_trachea_bronchia"],
+            "liver_vessels": ["liver_vessels", "liver_tumor"]
+        },
+    },
+    "digestive_system": {
+        "gastrointestinal_tract": ["esophagus", "stomach", "duodenum", "small_bowel", "colon"],
+        "accessory_organs": ["liver", "gallbladder", "pancreas"]
+    },
+    "endocrine_system": {
+        "glands": ["gland"]
+    },
+    "nervous_system": {
+        "brain": ["brain", "brainstem", "subarachnoid_space", "venous_sinuses", "septum_pellucidum", "cerebellum", "caudate_nucleus", "lentiform_nucleus", "insular_cortex", "internal_capsule", "ventricle", "central_sulcus", "frontal_lobe", "parietal_lobe", "occipital_lobe", "temporal_lobe", "thalamus"],
+        "eyes_and_nerves": ["eye", "eye_lens", "optic_nerve"],
+        "central_nervous_system": ["brain", "spinal_cord"]
+    },
+    "respiratory_system": {
+        "trachea": ["trachea"],
+        "lungs": ["lung"],
+        "pleural_pericard_effusion": {
+            "pleural_effusion": ["pleural_effusion"],
+            "pericardial_effusion": ["pericardial_effusion"]
+    },
+    },
+    "urinary_system": {
+        "kidneys": ["kidney"],
+        "urinary_tract": ["urinary_bladder"]
+    },
+    "reproductive_system": {
+        "male": ["prostate"]
+    },
+    "lymphatic_system": {
+        "spleen": ["spleen"]
+    }
+}
 
 def export_to_glb(output_path):
     print(f"Exporting scene to GLB: {output_path}")
     bpy.ops.export_scene.gltf(filepath=output_path, export_format='GLB')
 
 # Main Execution Functions
-def process_dicom(dicom_input, output_dir):
+def nii_to_stl(nii_input, segment_dir, stl_dir):
+    os.makedirs(segment_dir, exist_ok=True)
+    os.makedirs(stl_dir, exist_ok=True)
+    run_segmentation(nii_input, segment_dir)
+    convert_all_nii_to_stl(segment_dir, stl_dir)
+
+#alternate execution for testing post-segmentation.  This assumes the stls have already been generated and are in the appropriate directory
+def process_stls(stl_dir, glb_dir, glb_path):
+    os.makedirs(glb_dir, exist_ok=True)  
+    clear_scene()
+    load_stl_files(stl_dir)
+    rotate_scene()
+    apply_transformation()
+    materials = assign_materials()
+    assign_materials_to_objects(materials)
+    group_objects(group_definitions)
+    export_to_glb(glb_path)
+
+def process_files(nii_input, output_dir):
     # Define a regular expression pattern to match the file extension and the .gz suffix
     pattern = r"\.nii(\.gz)?$"
 
     # Remove the file extension and the .gz suffix using regular expressions
     filename_no_extension = re.sub(pattern, "", filename)
+
+
     output_subdir = output_dir + filename_no_extension + "/"
 
     segment_dir = os.path.join(output_subdir, "segment/")
@@ -200,19 +325,10 @@ def process_dicom(dicom_input, output_dir):
     glb_dir = os.path.join(output_subdir, "glb/")
     glb_path = glb_dir + filename_no_extension + ".glb"
 
-    os.makedirs(segment_dir, exist_ok=True)
-    os.makedirs(stl_dir, exist_ok=True)
-    os.makedirs(glb_dir, exist_ok=True)
-
-    run_segmentation(dicom_input, segment_dir)
-    convert_all_nii_to_stl(segment_dir, stl_dir)
-    clear_scene()
-    load_stl_files(stl_dir)
-    rotate_scene()
-    apply_transformation()
-    materials = assign_materials()
-    assign_materials_to_objects(materials)
-    export_to_glb(glb_path)
+    #comment this line out if you just want to test the post-segmentation conditions after creating all of the segmentations.
+    #nii_to_stl(nii_input,segment_dir, stl_dir)
+    
+    process_stls(stl_dir, glb_dir, glb_path)
 
 # Script Entry Point
 if __name__ == "__main__":
@@ -226,6 +342,6 @@ if __name__ == "__main__":
     # Iterate over all files in the input directory
     for filename in os.listdir(input_dir):
         input_path = os.path.join(input_dir, filename)
-        process_dicom(input_path, output_dir)
+        process_files(input_path, output_dir)
 
 #python dicom2glb.py Test\Images\ Test\Outputs\
