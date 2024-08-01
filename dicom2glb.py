@@ -61,13 +61,21 @@ def assign_materials():
 # Segmentation and Conversion Functions
 def run_segmentation(input_path, segment_dir):
     print(f"Running segmentation on file: {input_path}")
-    command = ["TotalSegmentator", "-i", input_path, "-o", segment_dir, "--preview"]
+    command = ["TotalSegmentator", "-i", input_path, "-o", segment_dir, "-d", "gpu"]
+    print(f"Running command: {' '.join(command)}")
+    
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors='ignore')
-    for line in iter(process.stdout.readline, ''):
-        print(line, end='')
-    for line in iter(process.stderr.readline, ''):
-        print(line, end='', file=sys.stderr)
-    return_code = process.wait()
+    
+    # Use communicate to read the output and error streams
+    stdout, stderr = process.communicate()
+    
+    # Print the output and error streams
+    if stdout:
+        print(stdout)
+    if stderr:
+        print(stderr, file=sys.stderr)
+    
+    return_code = process.returncode
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, command)
 
@@ -185,11 +193,11 @@ def process_dicom(dicom_input, output_dir):
 
     # Remove the file extension and the .gz suffix using regular expressions
     filename_no_extension = re.sub(pattern, "", filename)
-    output_subdir = output_dir + filename_no_extension + "\\"
+    output_subdir = output_dir + filename_no_extension + "/"
 
-    segment_dir = os.path.join(output_subdir, "segment")
-    stl_dir = os.path.join(output_subdir, "stl")
-    glb_dir = os.path.join(output_subdir, "glb\\")
+    segment_dir = os.path.join(output_subdir, "segment/")
+    stl_dir = os.path.join(output_subdir, "stl/")
+    glb_dir = os.path.join(output_subdir, "glb/")
     glb_path = glb_dir + filename_no_extension + ".glb"
 
     os.makedirs(segment_dir, exist_ok=True)
