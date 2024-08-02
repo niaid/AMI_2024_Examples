@@ -34,10 +34,12 @@ def load_class_map(json_path):
 def get_class_name(label, class_map, nii_path):
     # Ensure the label is a string
     label = str(label)
-    # Get the base name of the file
-    base_name = os.path.basename(nii_path)
-    # Split the base name by underscores and take the last part before the extension
-    task = base_name.split("_")[-1].split(".")[0]
+    # Find the valid task in the file path
+    task = None
+    for valid_task in VALID_TASKS:
+        if valid_task in nii_path:
+            task = valid_task
+            break
     # Get the class name from the class_map
     class_name = class_map.get(task, {}).get(label, label)
 
@@ -82,7 +84,7 @@ def run_segmentation(input_path, segments_dir, speed, tasks, stats):
             raise subprocess.CalledProcessError(return_code, command)
         
 #VTK Functions
-def vtk_nii_to_stl(nii_path, stl_dir):
+def vtk_nii_to_stl(nii_path, stl_task_dir):
     print(f"Converting NIfTI file to STL: {nii_path}")
     reader = vtk.vtkNIFTIImageReader()
     reader.SetFileName(nii_path)
@@ -150,14 +152,16 @@ def vtk_nii_to_stl(nii_path, stl_dir):
         class_map = load_class_map("ts_class_map.json")
         class_name = get_class_name(label, class_map, nii_path)
 
-        
         # Write the STL file for the current label
-        stl_path = os.path.join(stl_dir, f"{class_name}.stl")
-        writer = vtk.vtkSTLWriter()
-        writer.SetFileName(stl_path)
-        writer.SetInputData(mesh)
-        writer.Write()
-        print(f"STL file created: {stl_path}")
+        stl_path = os.path.join(stl_task_dir, f"{class_name}.stl")
+        try:
+            writer = vtk.vtkSTLWriter()
+            writer.SetFileName(stl_path)
+            writer.SetInputData(mesh)
+            writer.Write()
+            print(f"STL file created: {stl_path}")
+        except BaseException:
+            print(f"Failed to write STL file: {stl_path}")
 
 
 def cleanMesh(mesh, connectivityFilter=False):
@@ -202,12 +206,18 @@ def smoothMesh(mesh, nIterations=10):
     m2 = smooth.GetOutput()
     return m2
 
-def convert_all_nii_to_stl(segment_dir, stl_dir):
+def convert_all_nii_to_stl(segment_dir, stls_dir):
     print(f"Converting all NIfTI files in directory: {segment_dir} to STL")
     for file_name in os.listdir(segment_dir):
         if file_name.endswith('.nii'):
             nii_path = os.path.join(segment_dir, file_name)
-            vtk_nii_to_stl(nii_path, stl_dir)
+            for valid_task in VALID_TASKS:
+                if valid_task in nii_path:
+                    task = valid_task
+                    break
+            stl_task_dir = os.path.join(stls_dir, task + "/")
+            os.makedirs(stl_task_dir, exist_ok=True)
+            vtk_nii_to_stl(nii_path, stl_task_dir)
 
 def reduceMesh(mymesh, reductionFactor):
     """Reduce the number of triangles in a mesh using VTK's vtkDecimatePro
@@ -374,14 +384,8 @@ def nii_to_stl(nii_input, segments_dir, stls_dir, speed, tasks, stats):
     # Run segmentation
     run_segmentation(nii_input, segments_dir, speed, tasks, stats)
     
-    # Iterate over each task to create corresponding directories and convert NII to STL
-    for task in tasks:
-        task_segment_dir = segments_dir
-        task_stl_dir = stls_dir + task + "/"
-        os.makedirs(task_stl_dir, exist_ok=True)
-        
-        # Convert all NII files in the task segment directory to STL
-        convert_all_nii_to_stl(task_segment_dir, task_stl_dir)
+    # Convert all NII files in the task segment directory to STL
+    convert_all_nii_to_stl(segments_dir, stls_dir)
 
 def process_stls(stl_dir, glb_dir, glb_path):
     clear_scene()
@@ -409,8 +413,6 @@ def process_files(filename, nii_input, output_dir, speed, tasks, stats):
 
     #comment this line out if you just want to test the post-segmentation conditions after creating all of the segmentations.
     nii_to_stl(nii_input, segments_dir, stls_dir, speed, tasks, stats)
-
- 
 
     #output glb
     glb_dir = os.path.join(output_subdir, "glbs/")
