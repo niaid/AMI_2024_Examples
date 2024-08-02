@@ -1,0 +1,67 @@
+{
+    "muscular_system": {
+        "back": ["autochthon"],
+        "hip": ["iliopsoas", "gluteus_maximus", "gluteus_medius", "gluteus_minimus"],
+        "lower_limb": ["quadriceps_femoris", "sartorius", "thigh"],
+        "head_muscles": ["masseter", "temporalis", "lateral_pterygoid", "medial_pterygoid", "tongue", "digastric"],
+        "neck_muscles": ["sternocleidomastoid", "superior_pharyngeal_constrictor", "middle_pharyngeal_constrictor", "inferior_pharyngeal_constrictor", "trapezius", "platysma", "levator_scapulae", "anterior_scalene", "middle_scalene", "posterior_scalene", "sterno_thyroid", "thyrohyoid", "prevertebral"]
+    },
+    "skeletal_system": {
+        "axial_skeleton": {
+            "vertebrae": ["vertebrae", "sacrum", "intervertebral_discs", "vertebrae_body"],
+            "skull": {
+                "skull": ["skull", "zygomatic_arch", "styloid_process", "thyroid_cartilage", "cricoid_cartilage"],
+                "bony_processes": []
+            },
+            "ribs": ["rib"],
+            "sternum": ["sternum"],
+            "pelvis": ["hip"],
+            "hyoid": ["hyoid"]
+        },
+        "appendicular_skeleton": {
+            "upper_limb": ["humerus", "ulna", "radius", "carpal", "metacarpal", "phalanges_hand", "clavicula", "scapula"],
+            "lower_limb": ["femur", "patella", "tibia", "fibula", "tarsal", "metatarsal", "phalanges_feet"]
+        },
+        "cartilage": ["cartilage"]
+    },
+    "circulatory_system": {
+        "heart": ["heart", "heart_myocardium", "heart_atrium", "heart_ventricle", "atrial"],
+        "vessels": {
+            "arteries": ["aorta", "brachiocephalic_trunk", "artery", "arteries"],
+            "veins": ["vein", "vena", "iliac_vena", "inferior_vena_cava", "portal_vein_and_splenic_vein"],
+            "lung_vessels": ["lung_vessels", "lung_trachea_bronchia"],
+            "liver_vessels": ["liver_vessels", "liver_tumor"]
+        }
+    },
+    "digestive_system": {
+        "gastrointestinal_tract": ["esophagus", "stomach", "duodenum", "small_bowel", "colon"],
+        "accessory_organs": ["liver", "gallbladder", "pancreas"]
+    },
+    "endocrine_system": {
+        "glands": ["gland"]
+    },
+    "nervous_system": {
+        "brain": ["brain", "brainstem", "subarachnoid_space", "venous_sinuses", "septum_pellucidum", "cerebellum", "caudate_nucleus", "lentiform_nucleus", "insular_cortex", "internal_capsule", "ventricle", "central_sulcus", "frontal_lobe", "parietal_lobe", "occipital_lobe", "temporal_lobe", "thalamus"],
+        "eyes_and_nerves": ["eye", "eye_lens", "optic_nerve"],
+        "central_nervous_system": ["brain", "spinal_cord"]
+    },
+    "respiratory_system": {
+        "trachea": ["trachea"],
+        "lungs": ["lung"],
+        "pleural_pericard_effusion": {
+            "pleural_effusion": ["pleural_effusion"],
+            "pericardial_effusion": ["pericardial_effusion"]
+        }
+    },
+    "urinary_system": {
+        "kidneys": ["kidney"],
+        "urinary_tract": ["urinary_bladder"]
+    },
+    "reproductive_system": {
+        "male": ["prostate"]
+    },
+    "lymphatic_system": {
+        "spleen": ["spleen"]
+    }
+}
+ 
