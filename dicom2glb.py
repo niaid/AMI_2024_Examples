@@ -10,6 +10,7 @@ from vtk.util import numpy_support
 import numpy as np
 import json
 import shutil
+import gzip
 
 
 VALID_SPEEDS = ["normal", "fast"]
@@ -19,6 +20,7 @@ VALID_TASKS = [
     "head_muscles", "headneck_bones_vessels", "headneck_muscles"
 ]
 VALID_MODALITIES = ["CT", "MR"]
+GROUP_DEFINITIONS_FILE = os.path.dirname(__file__) + "\group_definitions.json"
 
 
 # Configuration
@@ -45,10 +47,18 @@ def get_class_name(label, class_map, nii_path):
 
     return class_name
 
-def load_group_definitions(json_path):
-    with open(json_path, 'r') as f:
-        data = json.load(f)
-    return data.get('group_definitions', {})
+def load_group_definitions():
+    try:
+        with open(GROUP_DEFINITIONS_FILE, 'r') as f:
+            data = json.load(f)
+            group_definitions = data.get('group_definitions', {})
+            return group_definitions
+    except FileNotFoundError:
+        print(f"File not found: {GROUP_DEFINITIONS_FILE}")
+        return {}
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+        return {}
 
 
 #Segmentation Functions
@@ -56,7 +66,8 @@ def run_segmentation(input_path, segments_dir, speed, tasks, stats):
     print("Requested tasks: ", tasks)
     
     for task in tasks:
-        segmentation = segments_dir + os.path.splitext(os.path.basename(input_path))[0] + "_" + task + ".nii"
+        segmentation = os.path.join(segments_dir, os.path.splitext(os.path.basename(input_path))[0] + "-" + task + ".nii")
+        
         if speed == "fast":
             print(f"Running segmentation on file: {input_path} with fast mode")
             command = ["TotalSegmentator", "-i", input_path, "-o", segmentation, "-d", "gpu", "--fast", "--task", task, "--ml"]
@@ -93,12 +104,12 @@ def vtk_nii_to_stl(nii_path, stl_task_dir):
 
     # Check if image_data is valid
     if image_data is None:
-        print(f"Failed to read NIfTI file: {nii_path}. Skipping...")
+        raise ValueError("Failed to read the NIfTI segmentation file.")
         return
 
     scalars = image_data.GetPointData().GetScalars()
     if scalars is None:
-        print(f"No scalar data found in file: {nii_path}. Skipping...")
+        raise ValueError("No scalar values found in the segmentation data.")
         return
 
     image_array = vtk.util.numpy_support.vtk_to_numpy(scalars)
@@ -211,11 +222,8 @@ def convert_all_nii_to_stl(segment_dir, stls_dir):
     for file_name in os.listdir(segment_dir):
         if file_name.endswith('.nii'):
             nii_path = os.path.join(segment_dir, file_name)
-            for valid_task in VALID_TASKS:
-                if valid_task in nii_path:
-                    task = valid_task
-                    break
-            stl_task_dir = os.path.join(stls_dir, task + "/")
+            task = file_name[file_name.rfind("_")+1:file_name.rfind(".")]
+            stl_task_dir = os.path.join(stls_dir, task)
             os.makedirs(stl_task_dir, exist_ok=True)
             vtk_nii_to_stl(nii_path, stl_task_dir)
 
@@ -242,11 +250,13 @@ def clear_scene():
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete()
 
-def load_stl_files(stl_dir):
+def load_stl_files(stls_dir):
     print("Loading all STL files")
-    for file in os.listdir(stl_dir):
-        if file.endswith(".stl"):
-            bpy.ops.wm.stl_import(filepath=os.path.join(stl_dir, file))
+    for root, _, files in os.walk(stls_dir):
+        for file in files:
+            if file.endswith('.stl'):
+                file_path = os.path.join(root, file)
+                bpy.ops.wm.stl_import(filepath=file_path)
 
 def rotate_scene():
     bpy.ops.object.select_all(action='SELECT')
@@ -306,32 +316,43 @@ def assign_materials_to_objects(materials):
     print("Assigning materials based on node labels")
     for obj in bpy.context.scene.objects:
         obj_name = obj.name.lower()
-        if any(substring in obj_name for substring in ['vertebrae', 'sacrum', 'humerus', 'scapula', 'clavicula', 'femur', 'hip', 'skull', 'rib', 'sternum']):
+        if any(substring in obj_name for substring in [
+            'vertebrae', 'sacrum', 'humerus', 'scapula', 'clavicula', 'femur', 'hip', 'skull', 'rib', 'sternum',
+            'intervertebral_discs', 'vertebrae_body', 'zygomatic_arch', 'styloid_process', 'thyroid_cartilage',
+            'cricoid_cartilage', 'ulna', 'radius', 'carpal', 'metacarpal', 'phalanges_hand', 'patella', 'tibia',
+            'fibula', 'tarsal', 'metatarsal', 'phalanges_feet', 'hyoid']):
             obj.data.materials.append(materials['bone'])
-        elif any(substring in obj_name for substring in ['heart', 'autochthon', 'gluteus_maximus', 'gluteus_medius', 'gluteus_minimus', 'autochthon', 'iliopsoas']):
-            obj.data.materials.append(materials['muscle'])
         elif 'spleen' in obj_name:
             obj.data.materials.append(materials['spleen'])
         elif 'kidney' in obj_name:
             obj.data.materials.append(materials['kidney'])
         elif 'liver' in obj_name:
             obj.data.materials.append(materials['liver'])
-        elif any(substring in obj_name for substring in ['stomach', 'esophagus', 'bowel', 'colon']):
+        elif any(substring in obj_name for substring in ['stomach', 'esophagus', 'bowel', 'colon', 'duodenum']):
             obj.data.materials.append(materials['stomach'])
         elif 'lung' in obj_name:
             obj.data.materials.append(materials['lung'])
         elif 'spinal' in obj_name:
             obj.data.materials.append(materials['nervous'])
-        elif any(substring in obj_name for substring in ['artery', 'aorta']):
+        elif any(substring in obj_name for substring in ['artery', 'aorta', 'vessel', 'vascular']):
             obj.data.materials.append(materials['artery'])
+        elif any(substring in obj_name for substring in ['vein', 'vena', 'iliac_vena', 'inferior_vena_cava', 'portal_vein', 'brachiocephalic_trunk']):
+            obj.data.materials.append(materials['vein'])
         elif any(substring in obj_name for substring in ['cartilage', 'trachea']):
             obj.data.materials.append(materials['cartilage'])
-        elif any(substring in obj_name for substring in ['vein', 'vena_cava', 'portal_vein', 'vascular', 'vessel', 'brachiocephalic_trunk']):
-            obj.data.materials.append(materials['vein'])
-        elif any(substring in obj_name for substring in ['gland', 'thyroid', 'parathyroid', 'adrenal', 'pituitary', 'hypothalamus', 'thymus', 'pancreas']):
+        elif any(substring in obj_name for substring in ['gland', 'thyroid', 'parathyroid', 'adrenal', 'pituitary', 'hypothalamus', 'thymus', 'pancreas', 'bladder', 'prostate']):
             obj.data.materials.append(materials['gland'])
+        elif  any(substring in obj_name for substring in ['effusion', 'hemorrhage']):
+            obj.data.materials.append(materials['fluid'])
+        elif  any(substring in obj_name for substring in ['infiltrate']):
+            obj.data.materials.append(materials['infiltrate'])
+        elif  any(substring in obj_name for substring in ['implant']):
+            obj.data.materials.append(materials['implant'])
+        elif  any(substring in obj_name for substring in ['tumor', 'tumour']):
+            obj.data.materials.append(materials['tumor'])
         else:
             obj.data.materials.append(materials['muscle'])  # Default to muscle for unidentified structures
+
 
 def create_parent_object(name):
     parent = bpy.data.objects.new(name, None)
@@ -341,8 +362,10 @@ def create_parent_object(name):
 def group_objects(group_definitions, parent=None):
     # Create a dictionary to keep track of parent objects
     parent_objects = {}
+
     
     for group_name, subgroups in group_definitions.items():
+       
         # Create a parent object for the current group
         parent_object = create_parent_object(group_name)
         parent_objects[group_name] = parent_object
@@ -394,53 +417,89 @@ def process_stls(stl_dir, glb_dir, glb_path):
     apply_transformation()
     materials = assign_materials()
     assign_materials_to_objects(materials)
-    group_definitions = load_group_definitions("group_definitions.json")
+    group_definitions = load_group_definitions()
     group_objects(group_definitions)
     export_to_glb(glb_path)
 
-def process_files(filename, nii_input, output_dir, speed, tasks, stats):
-    # Define a regular expression pattern to match the file extension and the .gz suffix
-    pattern = r"\.nii(\.gz)?$"
 
-    # Remove the file extension and the .gz suffix using regular expressions
-    filename_no_extension = re.sub(pattern, "", filename)
-    output_subdir = output_dir + filename_no_extension + "/"
+def construct_filename_no_extension(path):
+    # Check if the path is a directory or a file
+    if os.path.isdir(path):
+        directory_name = os.path.basename(path)
+    else:
+        directory_name = os.path.basename(os.path.dirname(path))
+    
+    # Replace spaces with underscores
+    return directory_name.replace(' ', '_')
 
-    segments_dir = os.path.join(output_subdir, "segments/")
-    stls_dir = os.path.join(output_subdir, "stls/")
+def find_dcm_subdirectories(input_dir):
+    dcm_subdirs = []
+    for root, dirs, files in os.walk(input_dir):
+        if any(file.endswith('.dcm') for file in files):
+            dcm_subdirs.append(root)
+    return dcm_subdirs
+
+def process_files(filename, nii_input, output_dir, speed, tasks, stats, merge):
+    if os.path.isdir(nii_input):
+        filename_no_extension = construct_filename_no_extension(nii_input)
+        nii_input_path = nii_input
+    else:
+        pattern = r"\.nii(\.gz)?$"
+        filename_no_extension = re.sub(pattern, "", filename)
+        nii_input_path = nii_input
+
+    output_subdir = os.path.join(output_dir, filename_no_extension)
+    segments_dir = os.path.join(output_subdir, "segments")
+    stls_dir = os.path.join(output_subdir, "stls")
+    os.makedirs(output_subdir, exist_ok=True)
     os.makedirs(segments_dir, exist_ok=True)
     os.makedirs(stls_dir, exist_ok=True)
 
-    #comment this line out if you just want to test the post-segmentation conditions after creating all of the segmentations.
-    nii_to_stl(nii_input, segments_dir, stls_dir, speed, tasks, stats)
+    nii_to_stl(nii_input_path, segments_dir, stls_dir, speed, tasks, stats)
 
-    #output glb
-    glb_dir = os.path.join(output_subdir, "glbs/")
+    glb_dir = os.path.join(output_subdir, "glbs")
     os.makedirs(glb_dir, exist_ok=True)
-    for task in tasks:
-        task_stl_dir = stls_dir + task + "/"
-        glb_path = os.path.join(glb_dir, filename_no_extension + "_" + task + ".glb")
-        process_stls(task_stl_dir, glb_dir, glb_path)
+    if merge:
+        # Process all STL files together
+        glb_path = os.path.join(glb_dir, f"{filename_no_extension}_merged.glb")
+        process_stls(stls_dir, glb_dir, glb_path)
+    else:
+        for task in tasks:
+            task_stl_dir = os.path.join(stls_dir, task)
+            glb_path = os.path.join(glb_dir, f"{filename_no_extension}_{task}.glb")
+            process_stls(task_stl_dir, glb_dir, glb_path)
 
+def find_nii_files(input_dir):
+    nii_files = []
+    for root, _, files in os.walk(input_dir):
+        for file in files:
+            if file.endswith('.nii'):
+                nii_files.append(os.path.join(root, file))
+            elif file.endswith('.nii.gz'):
+                gz_path = os.path.join(root, file)
+                nii_path = os.path.join(root, file[:-3])  # Remove the .gz extension
+                with gzip.open(gz_path, 'rb') as f_in:
+                    with open(nii_path, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                nii_files.append(nii_path)
 
-# Command-line Interface
+    return nii_files
+
 def main():
-
-    tasks_help = f"List of tasks to perform (e.g., {', '.join(VALID_TASKS)}).  Default is 'total'."
-
+    tasks_help = f"List of tasks to perform (e.g., {', '.join(VALID_TASKS)}). Default is 'total'."
     parser = argparse.ArgumentParser(description="Convert nii files to GLB format.\n\n"
-                    "Example usage for default settings:\n"
-                    "python DICOM2GLB.py -i /path/to/dicom -o /path/to/output\n"
-                    "Example usage for custom settings:\n"
-                    "python DICOM2GLB.py -i /path/to/dicom -o /path/to/output -s fast -t total blood_vessels\n",
-        formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("-i", "--input_dir", required=True, help="Directory containing nii files.")
+                                                 "Example usage for default settings:\n"
+                                                 "python DICOM2GLB.py -i /path/to/dicom -o /path/to/output\n"
+                                                 "Example usage for custom settings:\n"
+                                                 "python DICOM2GLB.py -i /path/to/dicom -o /path/to/output -s fast -t total blood_vessels\n",
+                                     formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("-i", "--input_dir", required=True, help="Directory containing nii files or subdirectories with .dcm files.")
     parser.add_argument("-o", "--output_dir", required=True, help="Directory to save the output directories and files.")
-    parser.add_argument("-s", "--speed", default="normal", choices=VALID_SPEEDS, help="Processing speed (optional).  Default is normal.  use 'fast' with limited resource")
-    parser.add_argument("-t", "--tasks", nargs='+', default=["total"], choices=VALID_TASKS, help=tasks_help)
+    parser.add_argument("-s", "--speed", default="normal", choices=VALID_SPEEDS, help="Processing speed (optional). Default is normal. Use 'fast' with limited resource")
+    parser.add_argument("-t", "--tasks", nargs='+',  choices=VALID_TASKS, help=tasks_help)
     parser.add_argument("--stats", action='store_true', help="Include this flag to generate statistics.")
-    parser.add_argument("-m","--modality", default="CT", choices=VALID_MODALITIES, help="Indicate the modality of the image set.")
-
+    parser.add_argument("-m", "--modality", default="CT", choices=VALID_MODALITIES, help="Indicate the modality of the image set.")
+    parser.add_argument("--merge", action='store_true', default=False, help="Include this flag to merge all glb files into a single glb file.")
     args = parser.parse_args()
 
     input_dir = args.input_dir
@@ -449,31 +508,41 @@ def main():
     tasks = args.tasks
     stats = args.stats
     modality = args.modality
+    merge = args.merge
 
-    #I don't like having to clean out my output directory every time I run this script. need to comment out if you want to debug based on previous outputs.
-    # Check if output_dir exists
-   
-    if os.path.exists(output_dir):
-        # Remove the existing directory and its contents
-        shutil.rmtree(output_dir)
+    #if os.path.exists(output_dir):
+        #shutil.rmtree(output_dir)
 
-    # Create a new output_dir
-    os.makedirs(output_dir)
+    #os.makedirs(output_dir)
 
-    #This can be managed by a UI, but helpful here for debugging.
     if modality == "CT":
-        for task in tasks:
-            if task.endswith("_mr"):
-                raise ValueError("MR tasks are not available for CT images.")
+        if not tasks:
+            tasks = ["total"]
+            pass
+        else:
+            for task in tasks:
+                if task.endswith("_mr"):
+                    raise ValueError("MR tasks are not available for CT images.")
     else:
-        for task in tasks:
-            if tasks.notendswith("_mr"):
-                raise ValueError("CT tasks are not available for MR images.")
-                
-    # Iterate over all files in the input directory
-    for filename in os.listdir(input_dir):
-        input_path = os.path.join(input_dir, filename)
-        process_files(filename, input_path, output_dir, speed, tasks, stats, )
+        if not tasks:
+            tasks = ["total_mr"]
+            pass
+        else:
+            for task in tasks:         
+                if not task.endswith("_mr"):
+                    raise ValueError("CT tasks are not available for MR images.")
+
+    dcm_subdirs = find_dcm_subdirectories(input_dir)
+    for subdir in dcm_subdirs:
+        filename = os.path.basename(subdir)
+        process_files(filename, subdir, output_dir, speed, tasks, stats, merge)
+
+    nii_files = find_nii_files(input_dir)
+    for nii_file in nii_files:
+        filename = os.path.basename(nii_file)
+        process_files(filename, nii_file, output_dir, speed, tasks, stats, merge)
+
+
 
 if __name__ == "__main__":
     main()
